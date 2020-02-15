@@ -27,24 +27,26 @@ int set_env_var(char **argv)
 
     return 1;
 }
+/* $end set_env_var */
+
 
 int main()
 {
     char cmdline[MAXLINE]; /* Command line */
     //set promt name
-    putenv("lshpromt=lsh");
+    putenv("lshprompt=lsh");
 
     while (1)
     {
         /* Read */
 
-        if (getenv("lshpromt") == NULL)
+        if (getenv("lshprompt") == NULL)
         {
             printf("> ");
         }
         else
         {
-            printf("%s> ", getenv("lshpromt"));
+            printf("%s> ", getenv("lshprompt"));
         }
 
         Fgets(cmdline, MAXLINE, stdin);
@@ -107,6 +109,15 @@ int builtin_command(char **argv)
     //Adding and deleting environment variables
     if (strchr(argv[0], '=') != NULL)
         return set_env_var(argv);
+
+    //replace with environment cariable path
+    int i=0;
+    while(argv[i]!=NULL){
+        if(argv[i][0]=='$'){
+            argv[i]= getenv(argv[i]+1);
+        }
+        i++;
+    }
 
     return 0; /* Not a builtin command */
 }
