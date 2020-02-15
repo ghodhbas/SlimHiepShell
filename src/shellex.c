@@ -10,6 +10,14 @@ int builtin_command(char **argv);
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
+    
+    //int i =0;
+    //while(environ[i]!=NULL){
+    //    printf("%s\n",environ[i]);
+    //    i++;
+    //}
+    //printf("ENVIRON NB: %d",i-1);
+    
 
     while (1) {
 	/* Read */
@@ -65,6 +73,10 @@ int builtin_command(char **argv)
 	exit(0);  
     if (!strcmp(argv[0], "&"))    /* Ignore singleton & */
 	return 1;
+
+    //Adding and deleting environment variables
+    if(strchr(argv[0], '=')!= NULL) set_env_var(argv);
+
     return 0;                     /* Not a builtin command */
 }
 /* $end eval */
@@ -103,4 +115,14 @@ int parseline(char *buf, char **argv)
 }
 /* $end parseline */
 
-
+/* $begin set_env_var */
+/*set_env_var - Add or deletes environment variables*/
+void set_env_var(char **argv){
+    int pid;
+    if ((pid =Fork()) == 0) {   /* Child runs user job */
+        if (execve(argv[0], argv, environ) < 0) {
+            printf("%s: Command not found.\n", argv[0]);
+            exit(0);
+        }
+    }
+}
