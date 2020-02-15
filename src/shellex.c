@@ -7,18 +7,31 @@ void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv); 
 
+/* $begin set_env_var */
+/*set_env_var - Add or deletes environment variables*/
+int set_env_var(char **argv){
+    printf("ENVIRONMENT CLLAEED\n");
+    //char* var_name = strtok(argv[0],"=");
+    //delete var
+    //char* v = strstr(argv[0], "=")+1;
+    
+    //Execve(const char *filename, char *const argv[], char *const envp[]);
+    putenv(argv[0]);
+    return 1;
+}
+
+
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
-    
+//
     //int i =0;
     //while(environ[i]!=NULL){
     //    printf("%s\n",environ[i]);
     //    i++;
     //}
-    //printf("ENVIRON NB: %d",i-1);
-    
-
+    //printf("ENVIRON NB: %d",i);
+//
     while (1) {
 	/* Read */
 	printf("> ");                   
@@ -75,7 +88,7 @@ int builtin_command(char **argv)
 	return 1;
 
     //Adding and deleting environment variables
-    if(strchr(argv[0], '=')!= NULL) set_env_var(argv);
+    if(strchr(argv[0], '=')!= NULL) return set_env_var(argv);
 
     return 0;                     /* Not a builtin command */
 }
@@ -115,14 +128,4 @@ int parseline(char *buf, char **argv)
 }
 /* $end parseline */
 
-/* $begin set_env_var */
-/*set_env_var - Add or deletes environment variables*/
-void set_env_var(char **argv){
-    int pid;
-    if ((pid =Fork()) == 0) {   /* Child runs user job */
-        if (execve(argv[0], argv, environ) < 0) {
-            printf("%s: Command not found.\n", argv[0]);
-            exit(0);
-        }
-    }
-}
+
