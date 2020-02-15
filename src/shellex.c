@@ -10,13 +10,17 @@ int builtin_command(char **argv);
 /* $begin set_env_var */
 /*set_env_var - Add or deletes environment variables*/
 int set_env_var(char **argv){
-    printf("ENVIRONMENT CLLAEED\n");
-    //char* var_name = strtok(argv[0],"=");
-    //delete var
-    //char* v = strstr(argv[0], "=")+1;
+    char* var_name = strtok(argv[0],"=");
+    //char* v = strtok(argv[0]+strlen(var_name)+1,"=");
+    char* v = strtok(NULL,"=");
+
+    if(v==NULL) {
+        unsetenv(argv[0]);
+    }else{
+        
+        setenv(var_name,v,1);
+    }
     
-    //Execve(const char *filename, char *const argv[], char *const envp[]);
-    putenv(argv[0]);
     return 1;
 }
 
@@ -24,17 +28,18 @@ int set_env_var(char **argv){
 int main() 
 {
     char cmdline[MAXLINE]; /* Command line */
-//
-    //int i =0;
-    //while(environ[i]!=NULL){
-    //    printf("%s\n",environ[i]);
-    //    i++;
-    //}
-    //printf("ENVIRON NB: %d",i);
-//
+    //set promt name
+    putenv("lshpromt=lsh");
+
     while (1) {
 	/* Read */
-	printf("> ");                   
+
+    if(getenv("lshpromt")==NULL){
+        printf("> ");
+    }else{
+	    printf("%s> ", getenv("lshpromt"));   
+    }    
+                
 	Fgets(cmdline, MAXLINE, stdin); 
 	if (feof(stdin))
 	    exit(0);
@@ -67,15 +72,16 @@ void eval(char *cmdline)
             }
         }
 
-	/* Parent waits for foreground job to terminate */
-	if (!bg) {
-	    int status;
-	    if (waitpid(pid, &status, 0) < 0)
-		unix_error("waitfg: waitpid error");
-	}
-	else
-	    printf("%d %s", pid, cmdline);
+	    /* Parent waits for foreground job to terminate */
+	    if (!bg) {
+	        int status;
+	        if (waitpid(pid, &status, 0) < 0)
+	    	unix_error("waitfg: waitpid error");
+	    }
+	    else
+	        printf("%d %s", pid, cmdline);
     }
+
     return;
 }
 
