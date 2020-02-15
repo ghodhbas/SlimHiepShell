@@ -1,4 +1,20 @@
-who worked on the project
+Project Created by Slim Ghodhbane & Hiep Le
+
+
+Group 1:
+    +:
+        -implemented the possibility to add and remove environment variables
+        -added a name for the shell 
+        -added the ability to change the name
+    obst:
+        -understanding the environ variable that stored environment variables awas a challenge
+        -making sure that a library functione xists before coding it from scratch
+    learned:
+        -utility of environment variables
+
+
+
+Group 2:
 
 
 obstacles you overcame 
