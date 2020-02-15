@@ -16,13 +16,17 @@ Group 1:
 
 Group 2:
     +:  
-        -implement exec to ook for programs within
+        - Implement exec to look for programs within the PATH
+        - Implement program to look for $
+        - If $ found, replace all env variables with their corresponding values
+    Obstacles:
+        - Thinking about how to work within the built_in function (what value to return)
+    Learned:
+        - How Echo and $ works
 
 
 obstacles you overcame 
 
-
 major things that you learned.
-
 
 enhancements you think would be good for your project.
