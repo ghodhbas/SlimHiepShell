@@ -1,53 +1,30 @@
 /* $begin shellmain */
 #include "csapp.h"
+#include "commands.h"
 #define MAXARGS 128
 
 /* Function prototypes */
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
-
-/* $begin set_env_var */
-/*set_env_var - Add or deletes environment variables*/
-int set_env_var(char **argv)
-{
-    char *var_name = strtok(argv[0], "=");
-    //char* v = strtok(argv[0]+strlen(var_name)+1,"=");
-    char *v = strtok(NULL, "=");
-
-    if (v == NULL)
-    {
-        unsetenv(argv[0]);
-    }
-    else
-    {
-
-        setenv(var_name, v, 1);
-    }
-
-    return 1;
-}
-/* $end set_env_var */
-
+;
 
 int main()
 {
     char cmdline[MAXLINE]; /* Command line */
     //set promt name
     putenv("lshprompt=lsh");
+    //set signal handlers
+    jid =0;
+    foreground=getpid();
+    signal(SIGINT, handler);
+    signal(SIGTSTP, handler);
 
     while (1)
     {
+        print_prompt();
+        fflush(stdout);
         /* Read */
-
-        if (getenv("lshprompt") == NULL)
-        {
-            printf("> ");
-        }
-        else
-        {
-            printf("%s> ", getenv("lshprompt"));
-        }
 
         Fgets(cmdline, MAXLINE, stdin);
         if (feof(stdin))
@@ -55,6 +32,7 @@ int main()
 
         /* Evaluate */
         eval(cmdline);
+        
     }
 }
 /* $end shellmain */
@@ -77,8 +55,10 @@ void eval(char *cmdline)
     {
         if ((pid = Fork()) == 0)
         { /* Child runs user job */
+            //update pgid
+            Setpgid(getpid(),getpid());
             if (execvp(argv[0], argv) < 0)
-            {
+            {   
                 printf("%s: Command not found.\n", argv[0]);
                 exit(0);
             }
@@ -86,14 +66,40 @@ void eval(char *cmdline)
 
         /* Parent waits for foreground job to terminate */
         if (!bg)
-        {
+        {      
+            //foreground is child
+
+            foreground=pid;
             int status;
-            if (waitpid(pid, &status, 0) < 0)
-                unix_error("waitfg: waitpid error");
+            //if (waitpid(pid, &status, WUNTRACED|| WCONTINUED ) < 0){
+            //    unix_error("waitfg: waitpid error\n");
+            //}
+            //if(WIFSTOPPED(status)) printf("siginal stopped\n");
+            //fflush(stdout);
+
+            do {
+                int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+                if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
+
+
+                //if (WIFEXITED(status)) {
+                //    printf("exited, status=%d\n", WEXITSTATUS(status));
+                //} else if (WIFSIGNALED(status)) {
+                //    printf("killed by signal %d\n", WTERMSIG(status));
+                //} else if (WIFSTOPPED(status)) {
+                //    printf("stopped by signal %d\n", WSTOPSIG(status));
+                //} else if (WIFCONTINUED(status)) {
+                //    printf("continued\n");
+                //}
+            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        
+
         }
         else
             printf("%d %s", pid, cmdline);
-    }
+        }
+        //foreground is shell
+        foreground=getpid();
 
     return;
 }
@@ -106,10 +112,6 @@ int builtin_command(char **argv)
     if (!strcmp(argv[0], "&")) /* Ignore singleton & */
         return 1;
 
-    //Adding and deleting environment variables
-    if (strchr(argv[0], '=') != NULL)
-        return set_env_var(argv);
-
     //replace with environment cariable path
     int i=0;
     while(argv[i]!=NULL){
@@ -118,6 +120,12 @@ int builtin_command(char **argv)
         }
         i++;
     }
+
+    //Adding and deleting environment variables
+    if (strchr(argv[0], '=') != NULL)
+        return set_env_var(argv);
+
+    
 
     return 0; /* Not a builtin command */
 }

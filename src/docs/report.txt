@@ -25,6 +25,17 @@ Group 2:
         - How Echo and $ works
 
 
+Group 3:
+    +:
+        -set the first child (job) pgid to it's own pid so that every child of this job will have the same pid (different than the pid of shellex)
+        -implemented SIGINT
+
+
+    Obstacles:
+        if we set the child pgid to pid then we need to manually kill the processes unless we implement the handler which kills the pgid 
+        -fixing SIGTSTP
+    Learned
+
 obstacles you overcame 
 
 major things that you learned.
