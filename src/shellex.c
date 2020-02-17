@@ -77,21 +77,21 @@ void eval(char *cmdline)
             //if(WIFSTOPPED(status)) printf("siginal stopped\n");
             //fflush(stdout);
 
-            do {
-                int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-                if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
+            
+            int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+            if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
 
 
-                //if (WIFEXITED(status)) {
-                //    printf("exited, status=%d\n", WEXITSTATUS(status));
-                //} else if (WIFSIGNALED(status)) {
-                //    printf("killed by signal %d\n", WTERMSIG(status));
-                //} else if (WIFSTOPPED(status)) {
-                //    printf("stopped by signal %d\n", WSTOPSIG(status));
-                //} else if (WIFCONTINUED(status)) {
-                //    printf("continued\n");
-                //}
-            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+            if (WIFEXITED(status)) {
+                printf("exited, status=%d\n", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                printf("killed by signal %d\n", WTERMSIG(status));
+            } else if (WIFSTOPPED(status)) {
+                printf("stopped by signal %d\n", WSTOPSIG(status));
+            } else if (WIFCONTINUED(status)) {
+                printf("continued\n");
+            }
+            
         
 
         }
