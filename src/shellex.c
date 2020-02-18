@@ -7,7 +7,6 @@
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
-;
 
 int main()
 {
@@ -15,7 +14,10 @@ int main()
     //set promt name
     putenv("lshprompt=lsh");
     //set signal handlers
-    jid =0;
+    last_job_index =0;
+    for(int i =0 ; i<100;i++){
+        jobs[i]=0;
+    }
     foreground=getpid();
     signal(SIGINT, handler);
     signal(SIGTSTP, handler);
@@ -68,31 +70,7 @@ void eval(char *cmdline)
         if (!bg)
         {      
             //foreground is child
-
-            foreground=pid;
-            int status;
-            //if (waitpid(pid, &status, WUNTRACED|| WCONTINUED ) < 0){
-            //    unix_error("waitfg: waitpid error\n");
-            //}
-            //if(WIFSTOPPED(status)) printf("siginal stopped\n");
-            //fflush(stdout);
-
-            
-            int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-            if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
-
-
-            if (WIFEXITED(status)) {
-                printf("exited, status=%d\n", WEXITSTATUS(status));
-            } else if (WIFSIGNALED(status)) {
-                printf("killed by signal %d\n", WTERMSIG(status));
-            } else if (WIFSTOPPED(status)) {
-                printf("stopped by signal %d\n", WSTOPSIG(status));
-            } else if (WIFCONTINUED(status)) {
-                printf("continued\n");
-            }
-            
-        
+            wait_foreground(pid);
 
         }
         else
@@ -125,7 +103,18 @@ int builtin_command(char **argv)
     if (strchr(argv[0], '=') != NULL)
         return set_env_var(argv);
 
-    
+    //list background jobs
+    if (!strcmp(argv[0], "jobs")) /* Ignore singleton & */
+        return list_jobs();
+
+    //run bg
+    if (!strcmp(argv[0], "bg")) /* Ignore singleton & */
+        return bg(argv);
+
+    //run fg
+    if (!strcmp(argv[0], "fg")) /* Ignore singleton & */
+        return fg();
+
 
     return 0; /* Not a builtin command */
 }

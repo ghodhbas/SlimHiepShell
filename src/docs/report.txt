@@ -29,11 +29,18 @@ Group 3:
     +:
         -set the first child (job) pgid to it's own pid so that every child of this job will have the same pid (different than the pid of shellex)
         -implemented SIGINT
-
+        -implemented jobs
+        -implemented bg
 
     Obstacles:
         if we set the child pgid to pid then we need to manually kill the processes unless we implement the handler which kills the pgid 
         -fixing SIGTSTP
+        -keeping track of background jobs and their jid/pid
+        -updating jobs table correctly when we bg/fg a  process
+        
+        
+        -fixing fg correct foregrounding
+        
     Learned
 
 obstacles you overcame 
