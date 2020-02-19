@@ -84,20 +84,25 @@ int bg (char** argv){
 
 
 int fg(){
-    pid_t pid = jobs[last_job_index];
+    //foreground is shell
+    volatile pid_t pid = jobs[last_job_index];
 
     kill(pid, SIGCONT);
-    //wait_foreground(pid);
-
-    int status;
+    tcsetpgrp(0, pid);
     //wait till end of process
+    int status;
     waitpid(pid, &status, WUNTRACED);
+    //wait_foreground(pid);
 
     jobs[last_job_index]=0;
     //correct indexing
     do{
         last_job_index--;
     } while(jobs[last_job_index]!=0);
+
+    signal(SIGTTOU, SIG_IGN);
+    tcsetpgrp(0, getpid());
+    signal(SIGTTOU, SIG_DFL);
 
     return 1;
 }

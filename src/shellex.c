@@ -73,11 +73,11 @@ void eval(char *cmdline)
             wait_foreground(pid);
 
         }
-        else
-            printf("%d %s", pid, cmdline);
-        }
-        //foreground is shell
-        foreground=getpid();
+        else printf("%d %s", pid, cmdline);
+    }
+    //foreground is shell
+
+    foreground=getpid();
 
     return;
 }

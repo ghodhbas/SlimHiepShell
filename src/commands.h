@@ -3,7 +3,6 @@
 
 #include "csapp.h"
 
-
 //VARS
 pid_t foreground;
 pid_t jobs[1000];
