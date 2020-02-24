@@ -9,19 +9,13 @@ int set_env_var(char **argv)
     char *v = strtok(NULL, "=");
 
     if (v == NULL)
-    {
         unsetenv(argv[0]);
-    }
     else
-    {
-
         setenv(var_name, v, 1);
-    }
 
     return 1;
 }
 /* $end set_env_var */
-
 
 int list_jobs(){
     for(int i=1; i<=last_job_index;i++){
@@ -56,15 +50,15 @@ int bg (char** argv){
 
         //p is jid here
         pid = jobs[p].pid;
-        jobs[p].pid = 0;
+        jobs[p].state = RUNNING;
 
         // if the job continued is the last index in the background processes
 
-        if(p == last_job_index){
-            do{
-                last_job_index--;
-            } while(jobs[last_job_index].pid==0);
-        } 
+        // if(p == last_job_index){
+        //     do{
+        //         last_job_index--;
+        //     } while(jobs[last_job_index].pid==0);
+        // } 
 
         if(pid ==0){
             fprintf(stderr, "Error continuing child -- wrong pid/jid\n");
@@ -84,9 +78,29 @@ int bg (char** argv){
 }
 
 
-int fg(){
-    //foreground is shell
-    volatile pid_t pid = jobs[last_job_index].pid;
+int fg(char **argv){
+
+    int jid =0;
+    int p;
+
+    if (argv[1] != NULL){
+        if(argv[1][0] == '%') jid =1;
+
+        if(jid){
+            p = atoi(strtok(strtok(argv[1], "%"), ""));
+        }else{
+            p = atoi(argv[1]);
+            //find jid
+            for(int j =1 ; j<=last_job_index;j++){
+                if(p == jobs[j].pid) p =j;
+            } 
+        }
+    } else {
+        p = last_job_index;
+    }
+
+    //p is jid here
+    volatile pid_t pid = jobs[p].pid;
 
     kill(pid, SIGCONT);
     tcsetpgrp(0, pid);
@@ -95,11 +109,13 @@ int fg(){
     waitpid(pid, &status, WUNTRACED);
     //wait_foreground(pid);
 
-    jobs[last_job_index].pid=0;
+    jobs[p].pid=0;
     //correct indexing
-    do{
+
+    while (jobs[last_job_index].pid == 0 && last_job_index > 0)
+    {
         last_job_index--;
-    } while(jobs[last_job_index].pid==0);
+    }
 
     signal(SIGTTOU, SIG_IGN);
     tcsetpgrp(0, getpid());
@@ -111,13 +127,11 @@ int fg(){
 
 void print_prompt(){
     if (getenv("lshprompt") == NULL)
-    {
         printf("> ");
-    }
     else
-    {
         printf("%s> ", getenv("lshprompt"));
-    }
+
+    fflush(stdout);
 }
 
 /* $begin handler */
