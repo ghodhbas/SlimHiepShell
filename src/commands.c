@@ -25,8 +25,8 @@ int set_env_var(char **argv)
 
 int list_jobs(){
     for(int i=1; i<=last_job_index;i++){
-        if(jobs[i] !=  0){
-            printf("[%d]  Stopped --- ID: %d and PGID: %d\n",i, jobs[i], getpgid(jobs[i]));
+        if(jobs[i].pid !=  0){
+            printf("[%d] PID: %d    %s  %s\n", jobs[i].jid, jobs[i].pid, get_state(jobs[i].state), jobs[i].command);
         }
     }
     fflush(stdout);
@@ -50,26 +50,27 @@ int bg (char** argv){
             p = atoi(argv[i]);
             //find jid
             for(int j =1 ; j<=last_job_index;j++){
-                if(p == jobs[j]) p =j;
+                if(p == jobs[j].pid) p =j;
             } 
         }
 
-
-        pid = jobs[p];
-        jobs[p] = 0;
+        //p is jid here
+        pid = jobs[p].pid;
+        jobs[p].pid = 0;
 
         // if the job continued is the last index in the background processes
 
         if(p == last_job_index){
             do{
                 last_job_index--;
-            } while(jobs[last_job_index]!=0);
+            } while(jobs[last_job_index].pid==0);
         } 
 
         if(pid ==0){
             fprintf(stderr, "Error continuing child -- wrong pid/jid\n");
             fprintf(stderr, "Usage: bg <PID/JID>\n");
             fflush(stdout); 
+            return 1;
         }
 
         //continue process in background
@@ -85,7 +86,7 @@ int bg (char** argv){
 
 int fg(){
     //foreground is shell
-    volatile pid_t pid = jobs[last_job_index];
+    volatile pid_t pid = jobs[last_job_index].pid;
 
     kill(pid, SIGCONT);
     tcsetpgrp(0, pid);
@@ -94,11 +95,11 @@ int fg(){
     waitpid(pid, &status, WUNTRACED);
     //wait_foreground(pid);
 
-    jobs[last_job_index]=0;
+    jobs[last_job_index].pid=0;
     //correct indexing
     do{
         last_job_index--;
-    } while(jobs[last_job_index]!=0);
+    } while(jobs[last_job_index].pid==0);
 
     signal(SIGTTOU, SIG_IGN);
     tcsetpgrp(0, getpid());
@@ -126,26 +127,28 @@ void handler(int sig)
     printf("\n");
     switch(sig){
         case SIGINT:
-            if(getpid()==foreground) {
+            if(getpid()==foreground.pid) {
                 print_prompt();
                 break;
             }
             //negative pid so we can kill all processes that belong to the pgid of this pid
-            Kill(-foreground,SIGINT);
-            foreground = getpid();
+            Kill(-foreground.pid,SIGINT);
+            foreground = shell;
             break;
 
         case SIGTSTP:
-            if(getpid()==foreground) {
+            if(getpid()==foreground.pid) {
                 print_prompt();
                 break;
             }else{
-                Kill(-foreground,SIGTSTP);
+                Kill(-foreground.pid,SIGTSTP);
+                foreground.state = STOPPED;
                 last_job_index++;
+                foreground.jid=last_job_index;
                 jobs[last_job_index]= foreground;
                 printf("[%d]+ Stopped\n",last_job_index);
                 //shell becomes foreground
-                foreground = getpid();
+                foreground = shell;
                 break;
             }
             break;
@@ -159,7 +162,7 @@ void handler(int sig)
 
 void wait_foreground(pid_t pid){
 
-    foreground=pid;
+    
     int status;
     int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
     if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
@@ -172,5 +175,23 @@ void wait_foreground(pid_t pid){
         printf("stopped by signal %d\n", WSTOPSIG(status));
     } else if (WIFCONTINUED(status)) {
         printf("continued\n");
+    }
+}
+
+char* get_state(enum state s){
+    switch (s)
+    {
+    case 0:
+        return "Running";
+        break;
+    case 1:
+        return "Stopped";
+        break;
+    case 2:
+        return "Zombie";
+        break;
+    default:
+        return "Unknown";
+        break;
     }
 }

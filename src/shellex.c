@@ -16,9 +16,14 @@ int main()
     //set signal handlers
     last_job_index =0;
     for(int i =0 ; i<100;i++){
-        jobs[i]=0;
+        jobs[i].pid=0;
     }
-    foreground=getpid();
+    foreground.pid =  getpid();
+    strcpy(foreground.command, "./shellex");
+    foreground.state = RUNNING;
+    foreground.jid =0;
+    shell = foreground;
+
     signal(SIGINT, handler);
     signal(SIGTSTP, handler);
 
@@ -66,18 +71,31 @@ void eval(char *cmdline)
             }
         }
 
+        
+        Process p;
+        p.pid =pid;
+        strcpy(p.command , cmdline);
+        p.state = RUNNING;
+
+
         /* Parent waits for foreground job to terminate */
         if (!bg)
-        {      
+        {    
+            foreground = p;
             //foreground is child
-            wait_foreground(pid);
+            wait_foreground(p.pid);
 
         }
-        else printf("%d %s", pid, cmdline);
+        else{
+            last_job_index++;
+            p.jid=last_job_index;
+            jobs[last_job_index]= p;
+            printf("%d %s", pid, cmdline);
+        } 
     }
     //foreground is shell
 
-    foreground=getpid();
+    foreground = shell;
 
     return;
 }
