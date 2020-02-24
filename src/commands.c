@@ -101,26 +101,30 @@ int fg(char **argv){
 
     //p is jid here
     volatile pid_t pid = jobs[p].pid;
+    foreground = jobs[p];
 
-    kill(pid, SIGCONT);
+    kill(-pid, SIGCONT);
     tcsetpgrp(0, pid);
-    //wait till end of process
-    int status;
-    waitpid(pid, &status, WUNTRACED);
-    //wait_foreground(pid);
 
     jobs[p].pid=0;
     //correct indexing
-
     while (jobs[last_job_index].pid == 0 && last_job_index > 0)
     {
         last_job_index--;
     }
 
+    //wait till end of process
+    
+    int status;
+    waitpid(pid, &status, WUNTRACED);
+    //wait_foreground(pid);
+
+
     signal(SIGTTOU, SIG_IGN);
     tcsetpgrp(0, getpid());
     signal(SIGTTOU, SIG_DFL);
-
+    printf("last i %d\n",last_job_index);
+    fflush(stdout);
     return 1;
 }
 
@@ -141,7 +145,7 @@ void handler(int sig)
     printf("\n");
     switch(sig){
         case SIGINT:
-            if(getpid()==foreground.pid) {
+            if(shell.pid==foreground.pid) {
                 print_prompt();
                 break;
             }
@@ -151,7 +155,7 @@ void handler(int sig)
             break;
 
         case SIGTSTP:
-            if(getpid()==foreground.pid) {
+            if(shell.pid==foreground.pid) {
                 print_prompt();
                 break;
             }else{

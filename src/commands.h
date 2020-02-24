@@ -25,7 +25,7 @@ char* get_state(enum state s);
 int set_env_var(char **argv);
 int list_jobs();
 int bg(char** argv);
-int fg();
+int fg(char **argv);
 void print_prompt();
 
 

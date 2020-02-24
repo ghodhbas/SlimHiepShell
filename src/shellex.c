@@ -131,7 +131,7 @@ int builtin_command(char **argv)
 
     //run fg
     if (!strcmp(argv[0], "fg")) /* Ignore singleton & */
-        return fg();
+        return fg(argv);
 
 
     return 0; /* Not a builtin command */
