@@ -41,11 +41,20 @@ int bg (char** argv){
         if(jid){
             p = atoi(strtok(strtok(argv[i], "%"), ""));
         }else{
-            p = atoi(argv[i]);
+            p = atoi(argv[1]);
+            int found = 0;
             //find jid
             for(int j =1 ; j<=last_job_index;j++){
-                if(p == jobs[j].pid) p =j;
+                if(p == jobs[j].pid ){
+                    p =j;
+                    found =1;
+                }
             } 
+            if(!found){
+                printf("PID NOT FOUND\n");
+                fflush(stdout);
+                return 1 ;
+            }
         }
 
         //p is jid here
@@ -90,10 +99,19 @@ int fg(char **argv){
             p = atoi(strtok(strtok(argv[1], "%"), ""));
         }else{
             p = atoi(argv[1]);
+            int found = 0;
             //find jid
             for(int j =1 ; j<=last_job_index;j++){
-                if(p == jobs[j].pid) p =j;
+                if(p == jobs[j].pid ){
+                    p =j;
+                    found =1;
+                }
             } 
+            if(!found){
+                printf("PID NOT FOUND\n");
+                fflush(stdout);
+                return 1 ;
+            }
         }
     } else {
         p = last_job_index;
@@ -104,7 +122,7 @@ int fg(char **argv){
     foreground = jobs[p];
 
     kill(-pid, SIGCONT);
-    tcsetpgrp(0, pid);
+    tcsetpgrp(shell.pid, pid);
 
     jobs[p].pid=0;
     //correct indexing
@@ -121,9 +139,8 @@ int fg(char **argv){
 
 
     signal(SIGTTOU, SIG_IGN);
-    tcsetpgrp(0, getpid());
+    tcsetpgrp(shell.pid, getpid());
     signal(SIGTTOU, SIG_DFL);
-    printf("last i %d\n",last_job_index);
     fflush(stdout);
     return 1;
 }
@@ -161,10 +178,22 @@ void handler(int sig)
             }else{
                 Kill(-foreground.pid,SIGTSTP);
                 foreground.state = STOPPED;
-                last_job_index++;
-                foreground.jid=last_job_index;
-                jobs[last_job_index]= foreground;
-                printf("[%d]+ Stopped\n",last_job_index);
+                int i =1;
+                while( i <= last_job_index+1)
+                {
+                    if(jobs[i].pid == 0) {
+                        foreground.jid = i;
+                        jobs[i]=foreground;
+                        break;
+                    }
+                    i++;
+                }
+
+                if(i == last_job_index+1){
+                    last_job_index = i;
+                }
+                
+                printf("[%d]+ Stopped\n",i);
                 //shell becomes foreground
                 foreground = shell;
                 break;
