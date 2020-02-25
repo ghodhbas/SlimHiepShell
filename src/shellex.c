@@ -7,11 +7,13 @@
 void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
+void exec_command(char* cmd);
+void exec_pipe_command(char* cmd, int pipefd[]);
 
 int main()
 {
     char cmdline[MAXLINE]; /* Command line */
-    //set promt name
+    //set promt name./
     putenv("lshprompt=lsh");
     //set signal handlers
     last_job_index =0;
@@ -48,53 +50,54 @@ int main()
 /* eval - Evaluate a command line */
 void eval(char *cmdline)
 {
-    char *argv[MAXARGS]; /* Argument list execve() */
-    char buf[MAXLINE];   /* Holds modified command line */
-    int bg;              /* Should the job run in bg or fg? */
-    pid_t pid;           /* Process id */
-
-    strcpy(buf, cmdline);
-    bg = parseline(buf, argv);
-    if (argv[0] == NULL)
-        return; /* Ignore empty lines */
-
-    if (!builtin_command(argv))
-    {
-        if ((pid = Fork()) == 0)
-        { /* Child runs user job */
-            //update pgid
-            Setpgid(getpid(),getpid());
-            if (execvp(argv[0], argv) < 0)
-            {   
-                printf("%s: Command not found.\n", argv[0]);
-                exit(0);
-            }
-        }
-
-        
-        Process p;
-        p.pid =pid;
-        strcpy(p.command , cmdline);
-        p.state = RUNNING;
-
-
-        /* Parent waits for foreground job to terminate */
-        if (!bg)
-        {    
-            foreground = p;
-            //foreground is child
-            wait_foreground(p.pid);
-
-        }
-        else{
-            last_job_index++;
-            p.jid=last_job_index;
-            jobs[last_job_index]= p;
-            printf("%d %s", pid, cmdline);
-        } 
+    //split cmdline into commands/
+    char* commands [100];
+    char* cmd;
+    int i =-1;
+    cmd=strtok(cmdline, "|");
+    while ( cmd != NULL   ){
+        i++;
+        commands[i] = cmd; 
+        cmd=strtok(NULL, "|");
     }
-    //foreground is shell
 
+    if(i == 0){
+        exec_command(commands[i]);
+    }else{
+        //pipes
+        int pipefd[2];
+        int ret = pipe(pipefd);
+        char readbuf[1000];
+        int input_size =0;
+
+        if(ret == -1){
+            perror("pipe error");
+            exit(1);
+        } 
+
+
+        int j =0;
+        while(j<=i){
+
+            fprintf(stderr,"command: %s\n", commands[j]);
+            fflush(stderr);
+            exec_pipe_command(commands[j], pipefd);
+            
+            input_size = read(pipefd[0],readbuf, sizeof(readbuf));
+            readbuf[input_size]='\0';
+            //save in tmp file
+            fprintf(stderr,"Read buffer: %s\n", readbuf);
+            fflush(stderr);
+
+            j++;
+        }
+        //reset stdin and out
+        dup(1); //stdout
+        dup(0); //stdin
+       
+    }
+
+    //foreground is shell
     foreground = shell;
 
     return;
@@ -133,6 +136,7 @@ int builtin_command(char **argv)
     if (!strcmp(argv[0], "fg")) /* Ignore singleton & */
         return fg(argv);
 
+    
 
     return 0; /* Not a builtin command */
 }
@@ -172,3 +176,109 @@ int parseline(char *buf, char **argv)
     return bg;
 }
 /* $end parseline */
+
+
+void exec_command(char* cmd){
+    char *argv[MAXARGS]; /* Argument list execve() */
+    char buf[MAXLINE];   /* Holds modified command line */
+    int bg;              /* Should the job run in bg or fg? */
+    pid_t pid;           /* Process id */
+
+    strcpy(buf, cmd);
+    bg = parseline(buf, argv);
+    if (argv[0] == NULL)
+        return; /* Ignore empty lines */
+
+    if (!builtin_command(argv))
+    {
+        if ((pid = Fork()) == 0)
+        { /* Child runs user job */
+            //update pgid
+            Setpgid(getpid(),getpid());
+            if (execvp(argv[0], argv) < 0)
+            {   
+                printf("%s: Command not found.\n", argv[0]);
+                exit(0);
+            }
+        }
+
+
+        Process p;
+        p.pid =pid;
+        strcpy(p.command , cmd);
+        p.state = RUNNING;
+
+
+        /* Parent waits for foreground job to terminate */
+        if (!bg)
+        {    
+            foreground = p;
+            //foreground is child
+            wait_foreground(p.pid);
+        }
+        else{
+            last_job_index++;
+            p.jid=last_job_index;
+            jobs[last_job_index]= p;
+            printf("%d %s", pid, cmd);
+        } 
+    }
+}
+
+void exec_pipe_command(char* cmd, int pipefd[]){
+    char *argv[MAXARGS]; /* Argument list execve() */
+    char buf[MAXLINE];   /* Holds modified command line */
+    int bg;              /* Should the job run in bg or fg? */
+    pid_t pid;           /* Process id */
+
+
+    
+
+    strcpy(buf, cmd);
+    bg = parseline(buf, argv);
+    if (argv[0] == NULL)
+        return; /* Ignore empty lines */
+
+    
+
+    if (!builtin_command(argv))
+    {
+        if ((pid = Fork()) == 0)
+        { /* Child runs user job */
+            
+            close(pipefd[0]);
+            dup2(pipefd[1],1);
+            //update pgid
+            Setpgid(getpid(),getpid());
+            if (execvp(argv[0], argv) < 0)
+            {   
+                printf("%s: Command not found.\n", argv[0]);
+                exit(0);
+            }
+        }
+
+
+        close(pipefd[1]);
+        dup2(pipefd[0],0);
+        Process p;
+        p.pid =pid;
+        strcpy(p.command , cmd);
+        p.state = RUNNING;
+
+
+        /* Parent waits for foreground job to terminate */
+        if (!bg)
+        {    
+            foreground = p;
+            //foreground is child
+            wait_foreground(p.pid);
+        }
+        else{
+            last_job_index++;
+            p.jid=last_job_index;
+            jobs[last_job_index]= p;
+            printf("%d %s", pid, cmd);
+        } 
+    }
+
+}
