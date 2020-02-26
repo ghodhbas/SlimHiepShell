@@ -8,7 +8,7 @@ void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
 void exec_command(char* cmd);
-void exec_pipe_command(char* cmd, int pipefd[]);
+void exec_pipe_command(char* cmd, int pipefd[],int j , int num_pipes, int pids[]);
 
 int main()
 {
@@ -50,53 +50,52 @@ int main()
 /* eval - Evaluate a command line */
 void eval(char *cmdline)
 {
-    //split cmdline into commands/
-    char* commands [100];
+    //split cmdline into commands with delim |/
+    char* commands [1000];
     char* cmd;
     int i =-1;
     cmd=strtok(cmdline, "|");
     while ( cmd != NULL   ){
         i++;
+        commands[i] = malloc(sizeof(char*) * 1000);
         commands[i] = cmd; 
         cmd=strtok(NULL, "|");
     }
 
+
     if(i == 0){
         exec_command(commands[i]);
     }else{
-        //pipes
-        int pipefd[2];
-        int ret = pipe(pipefd);
-        char readbuf[1000];
-        int input_size =0;
-
-        if(ret == -1){
-            perror("pipe error");
-            exit(1);
-        } 
-
+        //pipe setup
+        int nb_pipes = i;
+        int pipefd[2*nb_pipes];
+        //init pipes
+        for(int p=0;p<nb_pipes; p++){
+            if(pipe(pipefd+ 2*p)<0){
+                perror("Pipe Creation Error");
+                exit(EXIT_FAILURE);
+            }
+        }
 
         int j =0;
+        int pids[i+1];
         while(j<=i){
-
-            fprintf(stderr,"command: %s\n", commands[j]);
-            fflush(stderr);
-            exec_pipe_command(commands[j], pipefd);
-            
-            input_size = read(pipefd[0],readbuf, sizeof(readbuf));
-            readbuf[input_size]='\0';
-            //save in tmp file
-            fprintf(stderr,"Read buffer: %s\n", readbuf);
-            fflush(stderr);
-
+            exec_pipe_command(commands[j], pipefd, j , nb_pipes, pids);
             j++;
         }
-        //reset stdin and out
-        dup(1); //stdout
-        dup(0); //stdin
-       
-    }
+        
+        //close all pipes       
+        for(int p=0;p<nb_pipes*2; p++){
+            close(pipefd[p]);
+        }
+        //wait for children
+        for(int p=0;p<i+1; p++){
+            fprintf(stderr,"waiting for pid %d\n",pids[p]);
+            wait_foreground(pids[p]);
+            
+        }
 
+    }
     //foreground is shell
     foreground = shell;
 
@@ -225,31 +224,32 @@ void exec_command(char* cmd){
     }
 }
 
-void exec_pipe_command(char* cmd, int pipefd[]){
+void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[]){
     char *argv[MAXARGS]; /* Argument list execve() */
     char buf[MAXLINE];   /* Holds modified command line */
-    int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
 
-
-    
-
     strcpy(buf, cmd);
-    bg = parseline(buf, argv);
+    parseline(buf, argv);
     if (argv[0] == NULL)
         return; /* Ignore empty lines */
-
-    
 
     if (!builtin_command(argv))
     {
         if ((pid = Fork()) == 0)
         { /* Child runs user job */
             
-            close(pipefd[0]);
-            dup2(pipefd[1],1);
+            //get input from prev command read part
+            if(j!=0) dup2(pipefd[(j-1)*2], 0);
+            //output goes to next command
+            if(j != num_pipes) dup2(pipefd[j*2+1], 1);
+            //close all pipes
+            for(int p=0;p< num_pipes*2; p++){
+                close(pipefd[p]);
+            }
             //update pgid
-            Setpgid(getpid(),getpid());
+            if(j==0)Setpgid(getpid(),getpid());
+            fprintf(stderr,"Starting command %s with pud %d\n", argv[0], getpid());
             if (execvp(argv[0], argv) < 0)
             {   
                 printf("%s: Command not found.\n", argv[0]);
@@ -257,28 +257,7 @@ void exec_pipe_command(char* cmd, int pipefd[]){
             }
         }
 
-
-        close(pipefd[1]);
-        dup2(pipefd[0],0);
-        Process p;
-        p.pid =pid;
-        strcpy(p.command , cmd);
-        p.state = RUNNING;
-
-
-        /* Parent waits for foreground job to terminate */
-        if (!bg)
-        {    
-            foreground = p;
-            //foreground is child
-            wait_foreground(p.pid);
-        }
-        else{
-            last_job_index++;
-            p.jid=last_job_index;
-            jobs[last_job_index]= p;
-            printf("%d %s", pid, cmd);
-        } 
+        pids[j]=pid;
     }
 
 }
