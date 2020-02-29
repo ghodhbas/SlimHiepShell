@@ -27,6 +27,25 @@ int list_jobs(){
     return 1;
 }
 
+int jsum(){
+    printf("PID  | Status |   Time   | Min | Maj | Command\n");
+    for(int i=0; i<entry_count;i++){
+        Process p = history[i];
+        pid_t pid = p.pid;
+        char buff[20];
+        time_t elapsed = p.endTime - p.startTime;
+        strftime(buff, 20, "%H:%M:%S", gmtime(&elapsed));
+
+        int len = strlen(p.command);
+        if(p.command[len-1]=='\n') p.command[len-1]='\0';
+        //     printf("%-7d %-7s %-11s %-5ld %-5ld %s", pid, get_status(p.stat), buff, p.min, p.maj, p.command);
+        // else
+        printf("%-7d %-7s %-11s %-5ld %-5ld %s\n", pid, get_status(p.stat), buff, p.min, p.maj, p.command);
+        
+    }
+    return 1;
+}
+
 int bg (char** argv){
     //repeat for every pid/jid supplied
     int i = 1;
@@ -131,12 +150,26 @@ int fg(char **argv){
         last_job_index--;
     }
 
-    //wait till end of process
+    // Store elapsed info
     
     int status;
-    waitpid(pid, &status, WUNTRACED);
-    //wait_foreground(pid);
+    struct rusage usage;
+    wait4(pid, &status, WUNTRACED, &usage);
+    Process temp = jobs[p];
+    temp.pid = pid;
+    temp.endTime = time(NULL);
+    temp.min = usage.ru_minflt;
+    temp.maj = usage.ru_majflt;
 
+    if (WIFEXITED(status)){
+        temp.stat = OK;
+        history[entry_count] = temp;
+        entry_count++;
+    } else if (WIFSIGNALED(status)) {
+        temp.stat = ABORT;
+        history[entry_count] = temp;
+        entry_count++;
+    }
 
     signal(SIGTTOU, SIG_IGN);
     tcsetpgrp(shell.pid, getpid());
@@ -225,6 +258,41 @@ void wait_foreground(pid_t pid){
     }
 }
 
+void wait_foreground2(Process p){
+
+    
+    int status;
+    struct rusage *usage = (struct rusage*)malloc(sizeof(struct rusage));
+    int w = wait4(p.pid, &status, WUNTRACED | WCONTINUED, usage);
+    p.endTime = time(NULL);
+    long temp = usage->ru_minflt;
+    p.min = temp - p.min;
+    temp = usage->ru_majflt;
+    p.maj = temp - p.maj;
+
+    if (w == -1) { 
+        perror("waitpid"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    if (WIFEXITED(status)) {
+        p.stat = OK;
+        history[entry_count] = p;
+        entry_count++;
+        printf("exited, status=%d\n", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        p.stat = ABORT;
+        history[entry_count] = p;
+        entry_count++;
+        printf("killed by signal %d\n", WTERMSIG(status));
+    } else if (WIFSTOPPED(status)) {
+        printf("stopped by signal %d\n", WSTOPSIG(status));
+    } else if (WIFCONTINUED(status)) {
+        printf("continued\n");
+    }
+    //jsum();
+}
+
 char* get_state(enum state s){
     switch (s)
     {
@@ -236,6 +304,24 @@ char* get_state(enum state s){
         break;
     case 2:
         return "Zombie";
+        break;
+    default:
+        return "Unknown";
+        break;
+    }
+}
+
+char* get_status(enum end_status s){
+    switch (s)
+    {
+    case 0:
+        return "ok";
+        break;
+    case 1:
+        return "abort";
+        break;
+    case 2:
+        return "error";
         break;
     default:
         return "Unknown";

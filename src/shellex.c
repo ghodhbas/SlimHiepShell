@@ -8,7 +8,7 @@ void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
 void exec_command(char* cmd);
-void exec_pipe_command(char* cmd, int pipefd[],int j , int num_pipes, int pids[]);
+void exec_pipe_command(char* cmd, int pipefd[],int j , int num_pipes, int pids[], Process procs[]);
 
 int main()
 {
@@ -46,10 +46,26 @@ int main()
         for(int i=0; i<=last_job_index; i++){
             int status;
             if(jobs[i].pid !=  0){
-                int w = waitpid(jobs[i].pid, &status,  WNOHANG);
+                struct rusage usage;
+                int w = wait4(jobs[i].pid, &status, WNOHANG, &usage);
                 if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
 
                 if (w>0){
+                    Process temp = jobs[i];
+                    temp.endTime = time(NULL);
+                    temp.min = usage.ru_minflt;
+                    temp.maj = usage.ru_majflt;
+
+                    if(WIFEXITED(status)){
+                        temp.stat = OK;
+                    } else if (WIFSIGNALED(status)){
+                        temp.stat = ABORT;
+                    } else{
+                        temp.stat = ERROR;
+                    }
+
+                    history[entry_count++] = temp;
+
                     jobs[i].pid = 0;
                 }
             }
@@ -95,8 +111,9 @@ void eval(char *cmdline)
 
         int j =0;
         int pids[i+1];
+        Process procs[i+1];
         while(j<=i){
-            exec_pipe_command(commands[j], pipefd, j , nb_pipes, pids);
+            exec_pipe_command(commands[j], pipefd, j , nb_pipes, pids, procs);
             j++;
         }
         
@@ -107,8 +124,8 @@ void eval(char *cmdline)
         //wait for children
         for(int p=0;p<i+1; p++){
             fprintf(stderr,"waiting for pid %d\n",pids[p]);
-            wait_foreground(pids[p]);
-            
+            //wait_foreground(pids[p]);
+            wait_foreground2(procs[p]);
         }
 
     }
@@ -120,7 +137,7 @@ void eval(char *cmdline)
 
 /* If first arg is a builtin command, run it and return true */
 int builtin_command(char **argv)
-{
+{   
     if (!strcmp(argv[0], "quit")) /* quit command */
         exit(0);
     if (!strcmp(argv[0], "&")) /* Ignore singleton & */
@@ -149,15 +166,11 @@ int builtin_command(char **argv)
 
     //run fg
     if (!strcmp(argv[0], "fg")){
-        int pid;
-        if((pid = fork() == 0)){
-            printf("PID is %d\n", getpid());
-            exit(0);
-        }
         return fg(argv);
     }
 
-    
+    if (!strcmp(argv[0], "jsum")) /* Ignore singleton & */
+        return jsum();
 
     return 0; /* Not a builtin command */
 }
@@ -209,8 +222,9 @@ void exec_command(char* cmd){
     bg = parseline(buf, argv);
     if (argv[0] == NULL)
         return; /* Ignore empty lines */
-
-    if (!builtin_command(argv))
+    
+    int built_in = builtin_command(argv);
+    if (!built_in)
     {
         if ((pid = Fork()) == 0)
         { /* Child runs user job */
@@ -228,6 +242,10 @@ void exec_command(char* cmd){
         p.pid =pid;
         strcpy(p.command , cmd);
         p.state = RUNNING;
+        p.stat = OK;
+        p.min = 0;
+        p.maj = 0;
+        p.startTime = time(NULL);
 
 
         /* Parent waits for foreground job to terminate */
@@ -235,7 +253,7 @@ void exec_command(char* cmd){
         {    
             foreground = p;
             //foreground is child
-            wait_foreground(p.pid);
+            wait_foreground2(p);
         }
         else{
             last_job_index++;
@@ -243,10 +261,40 @@ void exec_command(char* cmd){
             jobs[last_job_index]= p;
             printf("%d %s", pid, cmd);
         } 
+    } else {
+        int pid = Fork();
+        if(pid == 0){
+            exit(0);
+        } else{
+            int status;
+            Process p;
+            p.pid = pid;
+            strcpy(p.command , cmd);
+            // struct rusage usage;
+            // getrusage(getpid(), &usage);
+            //p.state = RUNNING;
+            //p.stat = OK;
+            p.min = 0;
+            p.maj = 0;
+            p.startTime = time(NULL);
+            waitpid(pid, &status, WUNTRACED);
+            p.endTime = time(NULL);
+
+            // getrusage(getpid(), &usage);
+            // long temp = usage.ru_minflt;
+            // p.min = temp - p.min;
+            // temp = usage.ru_majflt;
+            // p.maj = temp - p.maj;
+            //wait_foreground2(p);
+            // p.endTime = time(NULL);
+            history[entry_count] = p;
+            entry_count++;
+        }
+       
     }
 }
 
-void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[]){
+void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[], Process procs[]){
     char *argv[MAXARGS]; /* Argument list execve() */
     char buf[MAXLINE];   /* Holds modified command line */
     pid_t pid;           /* Process id */
@@ -280,6 +328,16 @@ void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[
         }
 
         pids[j]=pid;
+
+        Process p;
+        p.pid =pid;
+        strcpy(p.command , cmd);
+        p.stat = OK;
+        p.min = 0;
+        p.maj = 0;
+        p.startTime = time(NULL);
+
+        procs[j] = p;
     }
 
 }

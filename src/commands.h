@@ -4,6 +4,7 @@
 #include "csapp.h"
 
 enum state{RUNNING, STOPPED, ZOMBIE};
+enum end_status{OK, ABORT, ERROR};
 
 typedef struct Process
 {
@@ -11,6 +12,13 @@ typedef struct Process
     int jid;
     char command[128];
     enum state state;
+
+    enum end_status stat;
+    time_t startTime;
+    time_t endTime;
+
+    long min;
+    long maj;
 }Process;
 
 //VARS
@@ -18,7 +26,12 @@ Process shell;
 Process foreground;
 Process jobs[1000];
 volatile int last_job_index ;
+
+Process history[100];
+int entry_count;
+
 char* get_state(enum state s);
+char* get_status(enum end_status s);
 
 
 //BUILT IN COMMADS
@@ -28,14 +41,13 @@ int bg(char** argv);
 int fg(char **argv);
 void print_prompt();
 
-
+int jsum();
 
 
 //SIGNAL HANDLERS
 void handler(int signal);
 void wait_foreground(pid_t pid);
-
-
+void wait_foreground2(Process p);
 
 
 
