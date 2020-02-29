@@ -5,7 +5,6 @@
 int set_env_var(char **argv)
 {
     char *var_name = strtok(argv[0], "=");
-    //char* v = strtok(argv[0]+strlen(var_name)+1,"=");
     char *v = strtok(NULL, "=");
 
     if (v == NULL)
@@ -20,7 +19,7 @@ int set_env_var(char **argv)
 int list_jobs(){
     for(int i=1; i<=last_job_index;i++){
         if(jobs[i].pid !=  0){
-            printf("[%d] PID: %d    %s  %s\n", jobs[i].jid, jobs[i].pid, get_state(jobs[i].state), jobs[i].command);
+            printf("[%d] PID: %d    %s  %s\n", jobs[i].jid, jobs[i].pid, get_state(jobs[i].state), trim(jobs[i].command));
         }
     }
     fflush(stdout);
@@ -28,7 +27,7 @@ int list_jobs(){
 }
 
 int jsum(){
-    printf("PID  | Status |   Time   | Min | Maj | Command\n");
+    printf("PID  | Status |   Time   |  Min  |  Maj  | Command\n");
     for(int i=0; i<entry_count;i++){
         Process p = history[i];
         pid_t pid = p.pid;
@@ -38,10 +37,8 @@ int jsum(){
 
         int len = strlen(p.command);
         if(p.command[len-1]=='\n') p.command[len-1]='\0';
-        //     printf("%-7d %-7s %-11s %-5ld %-5ld %s", pid, get_status(p.stat), buff, p.min, p.maj, p.command);
-        // else
-        printf("%-7d %-7s %-11s %-5ld %-5ld %s\n", pid, get_status(p.stat), buff, p.min, p.maj, p.command);
-        
+
+        printf("%-7d %-7s %-11s %-7ld %-7ld %s\n", pid, get_status(p.stat), buff, p.min, p.maj, trim(p.command));
     }
     return 1;
 }
@@ -70,7 +67,7 @@ int bg (char** argv){
                 }
             } 
             if(!found){
-                printf("PID NOT FOUND\n");
+                printf("PID not found\n");
                 fflush(stdout);
                 return 1 ;
             }
@@ -79,14 +76,6 @@ int bg (char** argv){
         //p is jid here
         pid = jobs[p].pid;
         jobs[p].state = RUNNING;
-
-        // if the job continued is the last index in the background processes
-
-        // if(p == last_job_index){
-        //     do{
-        //         last_job_index--;
-        //     } while(jobs[last_job_index].pid==0);
-        // } 
 
         if(pid ==0){
             fprintf(stderr, "Error continuing child -- wrong pid/jid\n");
@@ -127,7 +116,7 @@ int fg(char **argv){
                 }
             } 
             if(!found){
-                printf("PID NOT FOUND\n");
+                printf("PID not found\n");
                 fflush(stdout);
                 return 1 ;
             }
@@ -163,12 +152,10 @@ int fg(char **argv){
 
     if (WIFEXITED(status)){
         temp.stat = OK;
-        history[entry_count] = temp;
-        entry_count++;
+        history[entry_count++] = temp;
     } else if (WIFSIGNALED(status)) {
         temp.stat = ABORT;
-        history[entry_count] = temp;
-        entry_count++;
+        history[entry_count++] = temp;
     }
 
     signal(SIGTTOU, SIG_IGN);
@@ -233,6 +220,7 @@ void handler(int sig)
             }
             break;
         default:
+            printf("Signal caught %d\n", sig);
             break;
     }
     fflush(stdout);
@@ -240,57 +228,28 @@ void handler(int sig)
 }
 /* $end handler */
 
-void wait_foreground(pid_t pid){
+void wait_process(Process p){
 
-    
     int status;
-    int w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-    if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
-
-    if (WIFEXITED(status)) {
-        printf("exited, status=%d\n", WEXITSTATUS(status));
-    } else if (WIFSIGNALED(status)) {
-        printf("killed by signal %d\n", WTERMSIG(status));
-    } else if (WIFSTOPPED(status)) {
-        printf("stopped by signal %d\n", WSTOPSIG(status));
-    } else if (WIFCONTINUED(status)) {
-        printf("continued\n");
-    }
-}
-
-void wait_foreground2(Process p){
-
-    
-    int status;
-    struct rusage *usage = (struct rusage*)malloc(sizeof(struct rusage));
-    int w = wait4(p.pid, &status, WUNTRACED | WCONTINUED, usage);
+    struct rusage usage;
+    int w = wait4(p.pid, &status, WUNTRACED | WCONTINUED, &usage);
     p.endTime = time(NULL);
-    long temp = usage->ru_minflt;
-    p.min = temp - p.min;
-    temp = usage->ru_majflt;
-    p.maj = temp - p.maj;
+    p.min = usage.ru_minflt;
+    p.maj = usage.ru_majflt;
 
     if (w == -1) { 
-        perror("waitpid"); 
+        perror("waitpid");
         exit(EXIT_FAILURE); 
     }
 
     if (WIFEXITED(status)) {
         p.stat = OK;
-        history[entry_count] = p;
-        entry_count++;
-        printf("exited, status=%d\n", WEXITSTATUS(status));
+        history[entry_count++] = p;
     } else if (WIFSIGNALED(status)) {
-        p.stat = ABORT;
-        history[entry_count] = p;
-        entry_count++;
-        printf("killed by signal %d\n", WTERMSIG(status));
-    } else if (WIFSTOPPED(status)) {
-        printf("stopped by signal %d\n", WSTOPSIG(status));
-    } else if (WIFCONTINUED(status)) {
-        printf("continued\n");
+        p.stat = ABORT;    
+        history[entry_count++] = p;
     }
-    //jsum();
+
 }
 
 char* get_state(enum state s){
@@ -327,4 +286,24 @@ char* get_status(enum end_status s){
         return "Unknown";
         break;
     }
+}
+
+char *trim(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace((unsigned char)*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace((unsigned char)*end)) end--;
+
+  // Write new null terminator character
+  end[1] = '\0';
+
+  return str;
 }

@@ -8,7 +8,7 @@ void eval(char *cmdline);
 int parseline(char *buf, char **argv);
 int builtin_command(char **argv);
 void exec_command(char* cmd);
-void exec_pipe_command(char* cmd, int pipefd[],int j , int num_pipes, int pids[], Process procs[]);
+void exec_pipe_command(char* cmd, int pipefd[],int j , int num_pipes, Process procs[]);
 
 int main()
 {
@@ -89,7 +89,6 @@ void eval(char *cmdline)
     cmd=strtok(cmdline, "|");
     while ( cmd != NULL   ){
         i++;
-        //commands[i] = malloc(sizeof(char*) * 1000);
         commands[i] = cmd; 
         cmd=strtok(NULL, "|");
     }
@@ -110,10 +109,9 @@ void eval(char *cmdline)
         }
 
         int j =0;
-        int pids[i+1];
         Process procs[i+1];
         while(j<=i){
-            exec_pipe_command(commands[j], pipefd, j , nb_pipes, pids, procs);
+            exec_pipe_command(commands[j], pipefd, j , nb_pipes, procs);
             j++;
         }
         
@@ -123,15 +121,11 @@ void eval(char *cmdline)
         }
         //wait for children
         for(int p=0;p<i+1; p++){
-            fprintf(stderr,"waiting for pid %d\n",pids[p]);
-            //wait_foreground(pids[p]);
-            wait_foreground2(procs[p]);
+            //fprintf(stderr,"waiting for pid %d\n",procs[p].pid);
+            wait_process(procs[p]);
         }
 
     }
-    //for(int p=0;p<i+1; p++){
-    //    //free(commands[p]);
-    //}
     
     //foreground is shell
     foreground = shell;
@@ -161,11 +155,11 @@ int builtin_command(char **argv)
         return set_env_var(argv);
 
     //list background jobs
-    if (!strcmp(argv[0], "jobs")) /* Ignore singleton & */
+    if (!strcmp(argv[0], "jobs"))
         return list_jobs();
 
     //run bg
-    if (!strcmp(argv[0], "bg")) /* Ignore singleton & */
+    if (!strcmp(argv[0], "bg"))
         return bg(argv);
 
     //run fg
@@ -173,7 +167,7 @@ int builtin_command(char **argv)
         return fg(argv);
     }
 
-    if (!strcmp(argv[0], "jsum")) /* Ignore singleton & */
+    if (!strcmp(argv[0], "jsum"))
         return jsum();
 
     return 0; /* Not a builtin command */
@@ -257,48 +251,36 @@ void exec_command(char* cmd){
         {    
             foreground = p;
             //foreground is child
-            wait_foreground2(p);
+            wait_process(p);
         }
         else{
             last_job_index++;
             p.jid=last_job_index;
             jobs[last_job_index]= p;
-            printf("%d %s", pid, cmd);
         } 
     } else {
         int pid = Fork();
         if(pid == 0){
             exit(0);
-        } else{
+        } else {
             int status;
+
             Process p;
             p.pid = pid;
             strcpy(p.command , cmd);
-            // struct rusage usage;
-            // getrusage(getpid(), &usage);
-            //p.state = RUNNING;
-            //p.stat = OK;
             p.min = 0;
             p.maj = 0;
             p.startTime = time(NULL);
             waitpid(pid, &status, WUNTRACED);
             p.endTime = time(NULL);
 
-            // getrusage(getpid(), &usage);
-            // long temp = usage.ru_minflt;
-            // p.min = temp - p.min;
-            // temp = usage.ru_majflt;
-            // p.maj = temp - p.maj;
-            //wait_foreground2(p);
-            // p.endTime = time(NULL);
             history[entry_count] = p;
             entry_count++;
         }
-       
     }
 }
 
-void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[], Process procs[]){
+void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, Process procs[]){
     char *argv[MAXARGS]; /* Argument list execve() */
     char buf[MAXLINE];   /* Holds modified command line */
     pid_t pid;           /* Process id */
@@ -323,15 +305,13 @@ void exec_pipe_command(char* cmd, int pipefd[], int j , int num_pipes, int pids[
             }
             //update pgid
             if(j==0)Setpgid(getpid(),getpid());
-            fprintf(stderr,"Starting command %s with pud %d\n", argv[0], getpid());
+            //fprintf(stderr,"Starting command %s with pud %d\n", argv[0], getpid());
             if (execvp(argv[0], argv) < 0)
             {   
                 printf("%s: Command not found.\n", argv[0]);
                 exit(0);
             }
         }
-
-        pids[j]=pid;
 
         Process p;
         p.pid =pid;

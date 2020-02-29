@@ -1,18 +1,15 @@
-Project Created by Slim Ghodhbane & Hiep Le
-
+Slim Ghodhbane & Hiep Le
 
 Group 1:
     +:
-        -implemented the possibility to add and remove environment variables
-        -added a name for the shell 
-        -added the ability to change the name
-    obst:
-        -understanding the environ variable that stored environment variables awas a challenge
-        -making sure that a library functione xists before coding it from scratch
-    learned:
-        -utility of environment variables
-
-
+        - Implemented the possibility to add and remove environment variables
+        - Added a name for the shell 
+        - Added the ability to change the name
+    Obstacles:
+        - Understanding the environ variable that stored environment variables awas a challenge
+        - Making sure that a library functione xists before coding it from scratch
+    Learned:
+        - Utility of environment variables
 
 Group 2:
     +:  
@@ -24,26 +21,49 @@ Group 2:
     Learned:
         - How Echo and $ works
 
-
 Group 3:
     +:
-        -set the first child (job) pgid to it's own pid so that every child of this job will have the same pid (different than the pid of shellex)
-        -implemented SIGINT
-        -implemented jobs
-        -implemented bg
-        -implemented fg
-
+        - Set the first child (job) pgid to it's own pid so that every child of this job will have the same pid (different than the pid of shellex)
+        - Implemented SIGINT
+        - Implemented jobs
+        - Implemented bg
+        - Implemented fg
+        - Reap all zombies
     Obstacles:
-        if we set the child pgid to pid then we need to manually kill the processes unless we implement the handler which kills the pgid 
-        -fixing SIGTSTP
-        -keeping track of background jobs and their jid/pid
-        -updating jobs table correctly when we bg/fg a  process
-        -fixing fg correct foregrounding
+        - If we set the child pgid to pid then we need to 
+        manually kill the processes unless we implement the 
+        handler which kills the pgid 
+        - Fixing SIGTSTP
+        - Keeping track of background jobs and their jid/pid
+        - Updating jobs table correctly when we bg/fg a  process
+        - Fixing fg correct foregrounding
         
-    Learned
+    Learned:
+        - Learned the different options for wait (WUNTRACED, WNOHANG, etc)
+        - How bg and fb works. What data is saved when we hit fg/bg/^C/^Z 
 
-obstacles you overcame 
+Group 4:
+    +:
+        - Implement pipes for arbitrary number of commands
+    Obstacles:
+        - Knowing to close pipes that we don't use in the process
+        - Index manipulation for dup2
+        - Wait for processes and close the pipe entries
+        - Understand how pipe() works
 
-major things that you learned.
+    Learned:
+        - Mechanism of pipes (file descriptors, read, write)
+    
+Group 5:
+    +:
+        - Implemented jsum to display information about external commands
+        - Collect info about process's ID, commands, time elapsed, etc.
+    Obstacles:
+        - Catching all the processes and save information
+        - Preserve the history of processes to avoid losing info when forking
+    Learned:
+        - Formatting of strings in printf
+        - Forking and how it works with parent/child processes
 
-enhancements you think would be good for your project.
+Enhancements:
+    - More information how to get started with pipes and usage
