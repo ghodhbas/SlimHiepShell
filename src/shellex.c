@@ -89,7 +89,7 @@ void eval(char *cmdline)
     cmd=strtok(cmdline, "|");
     while ( cmd != NULL   ){
         i++;
-        commands[i] = malloc(sizeof(char*) * 1000);
+        //commands[i] = malloc(sizeof(char*) * 1000);
         commands[i] = cmd; 
         cmd=strtok(NULL, "|");
     }
@@ -129,6 +129,10 @@ void eval(char *cmdline)
         }
 
     }
+    //for(int p=0;p<i+1; p++){
+    //    //free(commands[p]);
+    //}
+    
     //foreground is shell
     foreground = shell;
 
