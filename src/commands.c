@@ -28,7 +28,7 @@ int list_jobs(){
 
 int jsum(){
     printf("PID  | Status |   Time   |  Min  |  Maj  | Command\n");
-    for(int i=0; i<entry_count;i++){
+    for(int i=entry_count-1; i>=0;i--){
         Process p = history[i];
         pid_t pid = p.pid;
         char buff[20];
