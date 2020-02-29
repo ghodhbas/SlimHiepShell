@@ -42,6 +42,22 @@ int main()
         /* Evaluate */
         eval(cmdline);
         
+        // Reap zombies
+        for(int i=0; i<=last_job_index; i++){
+            int status;
+            if(jobs[i].pid !=  0){
+                int w = waitpid(jobs[i].pid, &status,  WNOHANG);
+                if (w == -1) { perror("waitpid"); exit(EXIT_FAILURE); }
+
+                if (w>0){
+                    jobs[i].pid = 0;
+                }
+            }
+        }
+        while (jobs[last_job_index].pid == 0 && last_job_index > 0)
+        {
+            last_job_index--;
+        }
     }
 }
 /* $end shellmain */
@@ -136,8 +152,14 @@ int builtin_command(char **argv)
         return bg(argv);
 
     //run fg
-    if (!strcmp(argv[0], "fg")) /* Ignore singleton & */
+    if (!strcmp(argv[0], "fg")){
+        int pid;
+        if((pid = fork() == 0)){
+            printf("PID is %d\n", getpid());
+            exit(0);
+        }
         return fg(argv);
+    }
 
     
 
