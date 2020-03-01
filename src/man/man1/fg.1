@@ -1,0 +1,27 @@
+.\" Manpage for fg.
+.TH man 1 "29 February 2020" "1.0" "fg man page"
+.SH NAME
+fg \- Runs jobs in the foreground
+.SH SYNOPSIS
+fg [job_id] [process_pid]
+.SH DESCRIPTION
+Resume the specified job in the foreground, and make it the current job. 
+.SH OPTIONS
+NONE
+.SH OPERANDS
+.IP job_id		
+Specify job to be run as a foreground job. If no job_id
+operand is given, the job_id for the job that was most
+recently suspended, placed in the background, or run as a
+background job shall be used.
+.IP process_pid		
+Specify process to be run as a foreground job. If no pid
+is found, no process will be run.
+.SH EXAMPLES
+.IP "fg %1"				
+Resume job 1	
+.IP "fg 4235"			
+Resume process with pid 4235
+.SH AUTHOR
+Hiep Le, Slim Ghodhbane
+

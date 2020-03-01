@@ -1,0 +1,26 @@
+.\" Manpage for bg.
+.TH man 1 "29 February 2020" "1.0" "bg man page"
+.SH NAME
+bg \- Runs jobs in the background
+.SH SYNOPSIS
+bg [job_id] [process_pid]
+.SH DESCRIPTION
+Resume the specified job in the background
+.SH OPTIONS
+NONE
+.SH OPERANDS
+.IP job_id		
+Specify job to be run as a background job. If no job_id
+operand is given, the most recently suspended job
+shall be used.
+.IP process_pid		
+Specify process to be run as a background job. If no pid
+is found, no process will be run.
+.SH EXAMPLES
+.IP "bg %1"				
+Resume job 1 in the background
+.IP "bg 4235"			
+Resume process with pid 4235 in the background
+.SH AUTHOR
+Hiep Le, Slim Ghodhbane
+
