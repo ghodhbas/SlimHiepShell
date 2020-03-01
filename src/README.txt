@@ -1,7 +1,7 @@
 # SlimHiepShell
 Slim Ghodhbane, Hiep Le
 
-Implementation of C shell for Operating System's class
+Implementation of C shell for Operating System class
 
 #How to Run:
 
